@@ -13,6 +13,14 @@ setup(
         'requests',
     ],
     extras_require={
-        'pandas': ['pandas']
-    }
+        'pandas': ['pandas', 'ipython']
+    },
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "Framework :: IPython",
+        "Programming Language :: Python",
+        "Topic :: Utilities",
+    ],
+
 )

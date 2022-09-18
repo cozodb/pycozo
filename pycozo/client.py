@@ -31,12 +31,21 @@ class Client:
         if r.ok:
             res = r.json()
             if self.pandas:
-                df = self.pandas.DataFrame(columns=res['headers'], data=res['rows'])
-                return df
+                return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(colour_code_type)
             else:
                 return res
         else:
             raise QueryException(r.text)
+
+
+def colour_code_type(val):
+    if isinstance(val, int) or isinstance(val, float):
+        colour = '#307fc1'
+    elif isinstance(val, str):
+        colour = 'black'
+    else:
+        colour = '#bf5b3d'
+    return f'color: {colour}'
 
 
 class QueryException(Exception):

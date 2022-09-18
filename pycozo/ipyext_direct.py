@@ -5,7 +5,7 @@ def auto_cozo_mode(lines):
     if lines:
         if lines[0].strip() == '%%py':
             del lines[0]
-        elif not lines[0].startswith('%'):
+        elif not (lines[0].startswith('%') or lines[0].startswith('!')):
             lines.insert(0, '%%cozo')
     return lines
 
