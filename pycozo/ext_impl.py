@@ -23,7 +23,7 @@ class CozoMagics(Magics):
             import getpass
             self.client.password = getpass.getpass('Enter your password').strip()
         try:
-            self.client.run('?[a] := a <- 1 + 1', self.params)
+            self.client.run('?[a] := a = 1 + 1', self.params)
         except QueryException as e:
             return e
         except Exception as e:
