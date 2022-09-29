@@ -31,7 +31,7 @@ class Client:
         if r.ok:
             res = r.json()
             if self.pandas:
-                return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(colour_code_type)
+                return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(colour_code_type), res.get('time_taken')
             else:
                 return res
         else:
