@@ -15,14 +15,9 @@ class CozoMagics(Magics):
     @line_magic
     def cozo_auth(self, line: str):
         args = line.split()
-        if len(args) > 2 or len(args) < 1:
-            raise Exception('Wrong number of arguments: one or two required')
-        self.client.username = args[0]
-        if len(args) == 2:
-            self.client.password = args[1]
-        else:
-            import getpass
-            self.client.password = getpass.getpass('Enter your password').strip()
+        if len(args) != 1:
+            raise Exception('Wrong number of arguments: one required')
+        self.client.auth = args[0]
         try:
             self.client.run('?[a] := a = 1 + 1', self.params)
         except QueryException as e:

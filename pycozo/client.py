@@ -2,10 +2,9 @@ import requests
 
 
 class Client:
-    def __init__(self, *, host='http://127.0.0.1:9070', username=None, password=None, dataframe=True):
+    def __init__(self, *, host='http://127.0.0.1:9070', auth=None, dataframe=True):
         self.host = host
-        self.username = username or ''
-        self.password = password or ''
+        self.auth = auth or ''
         self.pandas = None
         if dataframe:
             try:
@@ -19,8 +18,7 @@ class Client:
 
     def headers(self):
         return {
-            'x-cozo-username': self.username,
-            'x-cozo-password': self.password
+            'x-cozo-auth': self.auth
         }
 
     def run(self, script, params=None):
@@ -31,7 +29,8 @@ class Client:
         if r.ok:
             res = r.json()
             if self.pandas:
-                return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(colour_code_type), res.get('time_taken')
+                return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(
+                    colour_code_type), res.get('time_taken')
             else:
                 return res
         else:

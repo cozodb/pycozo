@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pycozo',
-    version='0.1.1',
+    version='0.1.2',
     packages=['pycozo'],
     url='',
     license='MIT',
