@@ -1,6 +1,5 @@
 from IPython.core.magic import (Magics, magics_class, line_magic,
                                 cell_magic, needs_local_scope)
-from IPython.display import display, HTML
 
 from pycozo.client import Client, QueryException
 
@@ -9,7 +8,7 @@ from pycozo.client import Client, QueryException
 class CozoMagics(Magics):
     def __init__(self, shell, **kwargs):
         super().__init__(shell, **kwargs)
-        self.client = Client()
+        self.client = None
         self.params = {}
 
     @line_magic
@@ -27,12 +26,16 @@ class CozoMagics(Magics):
 
     @line_magic
     def cozo_host(self, line: str):
-        self.client.host = line.strip()
+        self.client = Client(host=line.strip())
+
+    @line_magic
+    def cozo_path(self, line: str):
+        self.client = Client(path=line.strip())
 
     @cell_magic
     def cozo(self, line, cell):
         try:
-            res, time_taken = self.client.run(cell, self.params)
+            res = self.client.run(cell, self.params)
         except QueryException as e:
             return e
         except Exception as e:
@@ -40,8 +43,6 @@ class CozoMagics(Magics):
         var = line.strip()
         if var:
             self.shell.user_ns[var] = res
-        if time_taken is not None:
-            display(HTML(f'<p style="font-size: 75%">Completed in {time_taken}ms</p>'))
         return res
 
     @line_magic

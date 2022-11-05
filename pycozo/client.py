@@ -1,16 +1,21 @@
-import requests
-
-
 class Client:
-    def __init__(self, *, host='http://127.0.0.1:9070', auth=None, dataframe=True):
-        self.host = host
-        self.auth = auth or ''
+    def __init__(self, *, path=None, host=None, auth=None, dataframe=True):
         self.pandas = None
+        if path is not None:
+            from cozo_embedded import CozoDbPy
+            self.embedded = CozoDbPy(path)
+        elif host is not None:
+            self.host = host
+            self.auth = auth or ''
+        else:
+            raise Exception('you must specify either `path` for embedded mode, or `host` for client/server mode')
+
         if dataframe:
             try:
                 import pandas
                 self.pandas = pandas
             except ImportError as _:
+                print('`pandas` feature was requested, but pandas is not installed')
                 pass
 
     def url(self):
@@ -21,20 +26,39 @@ class Client:
             'x-cozo-auth': self.auth
         }
 
-    def run(self, script, params=None):
+    def client_request(self, script, params=None):
+        import requests
+
         r = requests.post(self.url(), headers=self.headers(), json={
             'script': script,
             'params': params or {}
         })
-        if r.ok:
-            res = r.json()
-            if self.pandas:
-                return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(
-                    colour_code_type), res.get('time_taken')
-            else:
-                return res
+        res = r.json()
+        return self.format_return(res)
+
+    def format_return(self, res):
+        if not res['ok']:
+            raise QueryException(res)
+
+        if self.pandas:
+            return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(
+                colour_code_type)
         else:
-            raise QueryException(r.text)
+            return res
+
+    def embedded_request(self, script, params=None):
+        import json
+
+        params_str = json.dumps(params or {}, ensure_ascii=False)
+        res = self.embedded.run_query(script, params_str)
+        res = json.loads(res)
+        return self.format_return(res)
+
+    def run(self, script, params=None):
+        if self.embedded is None:
+            return self.client_request(script, params)
+        else:
+            return self.embedded_request(script, params)
 
 
 def colour_code_type(val):
@@ -48,9 +72,15 @@ def colour_code_type(val):
 
 
 class QueryException(Exception):
-    def __init__(self, text):
+    def __init__(self, resp):
         super().__init__()
-        self.text = text
+        self.resp = resp
+
+    def __repr__(self):
+        return self.resp.get('display') or self.resp.get('message') or str(self.resp)
+
+    def __str__(self):
+        return self.resp.get('message') or str(self.resp)
 
     def _repr_pretty_(self, p, cycle):
-        p.text(self.text)
+        p.text(repr(self))
