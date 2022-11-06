@@ -43,7 +43,10 @@ class CozoMagics(Magics):
         var = line.strip()
         if var:
             self.shell.user_ns[var] = res
-        return res
+        try:
+            return res.style.applymap(colour_code_type)
+        except:
+            return res
 
     @line_magic
     @needs_local_scope
@@ -100,3 +103,13 @@ class CozoMagics(Magics):
     @line_magic
     def cozo_client(self, _line):
         return self.client
+
+
+def colour_code_type(val):
+    if isinstance(val, int) or isinstance(val, float):
+        colour = '#307fc1'
+    elif isinstance(val, str):
+        colour = 'black'
+    else:
+        colour = '#bf5b3d'
+    return f'color: {colour}'

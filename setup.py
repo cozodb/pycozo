@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='pycozo',
-    version='0.1.4',
+    version='0.1.5',
     packages=['pycozo'],
     url='',
     license='MIT',
@@ -12,7 +12,7 @@ setup(
     install_requires=[],
     extras_require={
         'pandas': ['pandas', 'ipython'],
-        'embedded': ['cozo-embedded==0.1.3'],
+        'embedded': ['cozo-embedded==0.1.4'],
         'client': ['requests']
     },
     classifiers=[

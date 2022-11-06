@@ -41,8 +41,7 @@ class Client:
             raise QueryException(res)
 
         if self.pandas:
-            return self.pandas.DataFrame(columns=res['headers'], data=res['rows']).style.applymap(
-                colour_code_type)
+            return self.pandas.DataFrame(columns=res['headers'], data=res['rows'])
         else:
             return res
 
@@ -59,16 +58,6 @@ class Client:
             return self.client_request(script, params)
         else:
             return self.embedded_request(script, params)
-
-
-def colour_code_type(val):
-    if isinstance(val, int) or isinstance(val, float):
-        colour = '#307fc1'
-    elif isinstance(val, str):
-        colour = 'black'
-    else:
-        colour = '#bf5b3d'
-    return f'color: {colour}'
 
 
 class QueryException(Exception):
