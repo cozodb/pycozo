@@ -42,27 +42,30 @@ client.close()
 ```
 If you don't do this, the database resources may linger for an undetermined length of time
 inside your process, even if you `del` the `client` variable.
+It is OK to close a client multiple times.
 
 To run query:
 ```python
-client.run('::relations')
+res = client.run('::relations')
 ```
 
 If you need to bind variables:
 To run query:
 ```python
-client.run('[] <- [[$name]]', {'name': 'Python'})
+res = client.run('[] <- [[$name]]', {'name': 'Python'})
 ```
 
 If `pandas` is available, a dataframe containing the results is returned.
 If you want to disable this behaviour even when you have `pandas` installed,
-pass `dataframe=False` in the constructor of `Client`.
+pass `dataframe=False` in the constructor of `Client`,
+in which case a python dict containing the relation data in `res['rows']`
+and the relation header in `res['header']` is returned.
 
 When a query is unsuccessful, an exception is raised containing the details.
 If you want a nicely formatted message:
 ```python
 try:
-    client.run('BAD!')
+    res = client.run('BAD!')
 except Exception as e:
     print(repr(e))
 ```
