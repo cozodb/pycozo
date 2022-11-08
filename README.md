@@ -52,7 +52,7 @@ res = client.run('::relations')
 If you need to bind variables:
 To run query:
 ```python
-res = client.run('[] <- [[$name]]', {'name': 'Python'})
+res = client.run('?[] <- [[$name]]', {'name': 'Python'})
 ```
 
 If `pandas` is available, a dataframe containing the results is returned.
