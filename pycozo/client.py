@@ -97,16 +97,14 @@ class Client:
         else:
             return self._embedded_request(script, params)
 
-    def export_relations(self, relations, *, as_objects=False):
+    def export_relations(self, relations):
         """Export the specified relations.
 
         :param relations: names of the relations in a list.
-        :param as_objects: if `true`, each row of a relation will be given as a dict of key-value pairs, otherwise
-                           each row will be given as an array of values, with keys given separately for all rows.
         :return: a dict with string keys for the names of relations, and values containing all the rows.
         """
         if self.embedded:
-            payload = json.dumps({'relations': relations, 'as_objects': as_objects})
+            payload = json.dumps({'relations': relations})
             res = json.loads(self.embedded.export_relations(payload))
             if res['ok']:
                 return res['data']
@@ -118,8 +116,6 @@ class Client:
 
             rels = ','.join(map(lambda s: urllib.parse.quote_plus(s), relations))
             url = f'{self.host}/export/{rels}'
-            if as_objects:
-                url = url + '?as_objects=1'
 
             r = requests.get(url, headers=self._headers())
             res = r.json()
