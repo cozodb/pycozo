@@ -227,3 +227,4 @@ cython_debug/
 
 *.ipynb
 _test_db
+.idea
