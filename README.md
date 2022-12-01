@@ -5,7 +5,7 @@
 Python client and Jupyter helper for [CozoDB](https://github.com/cozodb/cozo).
 
 This document describes how to set up Cozo in Python.
-To learn how to use CozoDB (CozoScript), follow the [tutorial](https://nbviewer.org/github/cozodb/cozo-docs/blob/main/tutorial/tutorial.ipynb)
+To learn how to use CozoDB (CozoScript), follow the [tutorial](https://github.com/cozodb/cozo-docs/blob/main/tutorial/tutorial.ipynb)
 first and then read the [manual](https://cozodb.github.io/current/manual/). You can run all the queries
 described in the tutorial with an in-browser DB [here](https://cozodb.github.io/wasm-demo/)
 if you prefer not installing anything on your machine.

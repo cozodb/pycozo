@@ -181,7 +181,7 @@ class Client:
             raise RuntimeError('Remote databases cannot be restored remotely')
 
     def import_from_backup(self, path, relations):
-        """Import named relations from a backup
+        """Import stored relations from a backup
 
         :param path: path to the backup file. For remote databases, this is a path on the remote machine.
         :param relations: a list containing the names of the relations to import. The relations must exist
