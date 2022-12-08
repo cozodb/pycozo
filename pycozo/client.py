@@ -133,6 +133,9 @@ class Client:
     def import_relations(self, data):
         """Import data into a database
 
+        Note that triggers are _not_ run for the relations, if any exists.
+        If you need to activate triggers, use queries with parameters.
+
         :param data: should be given as a dict with string keys, in the same format as returned by `export_relations`.
                      The relations to import into must exist.
         """
@@ -181,7 +184,10 @@ class Client:
             raise RuntimeError('Remote databases cannot be restored remotely')
 
     def import_from_backup(self, path, relations):
-        """Import stored relations from a backup
+        """Import stored relations from a backup.
+
+        Note that triggers are _not_ run for the relations, if any exists.
+        If you need to activate triggers, use queries with parameters.
 
         :param path: path to the backup file. For remote databases, this is a path on the remote machine.
         :param relations: a list containing the names of the relations to import. The relations must exist
