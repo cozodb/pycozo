@@ -131,7 +131,7 @@ class CozoMagics(Magics):
         """Import data saved in a local file"""
         self._ensure_client()
         file = eval(line)
-        with open(file) as f:
+        with open(file, encoding='utf-8') as f:
             data = json.load(f)
 
         self.client.import_relations(data)

@@ -8,7 +8,7 @@ from setuptools import setup
 
 setup(
     name='pycozo',
-    version='0.3.0',
+    version='0.4.0',
     packages=['pycozo'],
     url='',
     license='MPL-2.0',
@@ -18,7 +18,7 @@ setup(
     install_requires=[],
     extras_require={
         'pandas': ['pandas', 'ipython'],
-        'embedded': ['cozo-embedded==0.3.0'],
+        'embedded': ['cozo-embedded==0.4.0'],
         'client': ['requests']
     },
     classifiers=[
