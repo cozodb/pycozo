@@ -2,13 +2,12 @@
 
 [![pypi](https://img.shields.io/pypi/v/pycozo)](https://pypi.org/project/pycozo/)
 
-Python client and Jupyter helper for [CozoDB](https://github.com/cozodb/cozo).
+Python client and Jupyter helper for [CozoDB](https://www.cozodb.org).
 
 This document describes how to set up Cozo in Python.
-To learn how to use CozoDB (CozoScript), follow the [tutorial](https://github.com/cozodb/cozo-docs/blob/main/tutorial/tutorial.ipynb)
-first and then read the [manual](https://cozodb.github.io/current/manual/). You can run all the queries
-described in the tutorial with an in-browser DB [here](https://cozodb.github.io/wasm-demo/)
-if you prefer not installing anything on your machine.
+To learn how to use CozoDB (CozoScript), follow
+the [tutorial](https://docs.cozodb.org/en/latest/tutorial.html). You can run all the queries
+described in the tutorial with an in-browser DB [here](https://www.cozodb.org/wasm-demo/).
 
 ## Install
 
