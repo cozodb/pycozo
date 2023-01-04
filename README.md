@@ -5,9 +5,7 @@
 Python client and Jupyter helper for [CozoDB](https://www.cozodb.org).
 
 This document describes how to set up Cozo in Python.
-To learn how to use CozoDB (CozoScript), follow
-the [tutorial](https://docs.cozodb.org/en/latest/tutorial.html). You can run all the queries
-described in the tutorial with an in-browser DB [here](https://www.cozodb.org/wasm-demo/).
+To learn how to use CozoDB (CozoScript), read the [docs](https://docs.cozodb.org/en/latest/index.html).
 
 ## Install
 
@@ -106,8 +104,7 @@ when executing queries so that multiple queries in different threads can proceed
 ### Other operations
 
 `Client` has other methods on it: `export_relations`, `import_relations`, `backup`,
-`restore` and `import_from_backup`. See the inline python doc for details. These methods
-do the same thing as similarly-named methods in other languages.
+`restore` and `import_from_backup`. See the [doc](https://docs.cozodb.org/en/latest/nonscript.html) for more details.
 
 ## Jupyter helper
 
@@ -135,14 +132,14 @@ This version is less intrusive in that you need to prefix a cell by the line
 `%%cozo` in order for subsequent content to be interpreted as CozoScript.
 
 To execute queries, you also need to connect to a database.
-If you have the embedded option enabled, you can open a database directory
-by
+If you have the embedded option enabled and you do nothing, you connect to a default
+in-memory database. To override:
 
 ```
-%cozo_path <PATH>
+%cozo_open <ENGINE>, <PATH>
 ```
 
-where `<PATH>` is not quoted.
+where `<ENGINE>` can now be `'sqlite'`, `'rocksdb'` or `'mem'`.
 
 To connect to a standalone server, use
 
@@ -152,13 +149,13 @@ To connect to a standalone server, use
 ```
 
 where `<AUTH_STRING>` is optional if `<ADDRESS>` is a loopback address.
-For how to determine the `<AUTH_STRING>`, see [here](https://github.com/cozodb/cozo/blob/main/standalone.md).
+For how to determine the `<AUTH_STRING>`, see [here](https://github.com/cozodb/cozo/tree/main/cozoserver).
 
 There are other magic commands you can use:
 
 * `%cozo_run_file <PATH_TO_FILE>` runs a local file as CozoScript.
 * `%cozo_run_string <VARIABLE>` runs variable containing string as CozoScript.
-* `%cozo_set <KEY> <VALUE>` sets a parameter with the name <KEY> to the expression <VALUE>. The updated parameters will
+* `%cozo_set <KEY> <VALUE>` sets a parameter with the name `<KEY>` to the expression `<VALUE>`. The updated parameters will
   be used by subsequent queries.
 * `%cozo_set_params <PARAM_MAP>` replace all parameters by the given expression, which must evaluate to a dictionary
   with string keys.
