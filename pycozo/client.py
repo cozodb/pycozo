@@ -170,6 +170,30 @@ class Client:
             if not res['ok']:
                 raise RuntimeError(res['message'])
 
+    def register_callback(self, relation, callback):
+        if self.embedded:
+            return self.embedded.register_callback(relation, callback)
+        else:
+            raise RuntimeError('Only supported on embedded DBs')
+
+    def unregister_callback(self, cb_id):
+        if self.embedded:
+            self.embedded.unregister_callback(cb_id)
+        else:
+            raise RuntimeError('Only supported on embedded DBs')
+
+    def register_fixed_rule(self, name, arity, impl):
+        if self.embedded:
+            return self.embedded.register_fixed_rule(name, arity, impl)
+        else:
+            raise RuntimeError('Only supported on embedded DBs')
+
+    def unregister_fixed_rule(self, name):
+        if self.embedded:
+            return self.embedded.unregister_fixed_rule(name)
+        else:
+            raise RuntimeError('Only supported on embedded DBs')
+
     def restore(self, path):
         """Restore database from a backup. Must be called on an empty database.
 
