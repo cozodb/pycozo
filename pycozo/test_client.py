@@ -51,6 +51,10 @@ def test_client():
         raised = True
     assert raised
 
+    data = b'abcxyz'
+    r = client.run("?[z] <- [[$z]]", {'z': data})
+    assert r['rows'][0][0] == data
+
 
 if __name__ == '__main__':
     test_client()
