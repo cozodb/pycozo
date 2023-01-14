@@ -84,12 +84,14 @@ class Client:
             return res
 
     def _embedded_request(self, script, params=None):
-        import json
-
-        params_str = json.dumps(params or {}, ensure_ascii=False)
-        r = self.embedded.run_query(script, params_str)
-        res = json.loads(r)
-        return self._format_return(res)
+        try:
+            res = self.embedded.run_script(script, params or {})
+        except Exception as e:
+            raise QueryException(e.args[0]) from None
+        if self.pandas:
+            return self.pandas.DataFrame(columns=res['headers'], data=res['rows'])
+        else:
+            return res
 
     def run(self, script, params=None):
         """Run a given CozoScript query.
@@ -110,12 +112,7 @@ class Client:
         :return: a dict with string keys for the names of relations, and values containing all the rows.
         """
         if self.embedded:
-            payload = json.dumps({'relations': relations})
-            res = json.loads(self.embedded.export_relations(payload))
-            if res['ok']:
-                return res['data']
-            else:
-                raise RuntimeError(res['message'])
+            return self.embedded.export_relations(relations)
         else:
             import requests
             import urllib.parse
@@ -140,10 +137,7 @@ class Client:
                      The relations to import into must exist.
         """
         if self.embedded:
-            payload = json.dumps(data, ensure_ascii=False)
-            res = json.loads(self.embedded.import_relations(payload))
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            self.embedded.import_relations(data)
         else:
             import requests
             url = f'{self.host}/import'
@@ -159,9 +153,7 @@ class Client:
         :param path: the path to write the backup into. For a remote database, this is a path on the remote machine.
         """
         if self.embedded:
-            res = json.loads(self.embedded.backup(path))
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            self.embedded.backup(path)
         else:
             import requests
 
@@ -201,9 +193,7 @@ class Client:
                      For remote databases, you cannot restore them this way: use the executable directly.
         """
         if self.embedded:
-            res = json.loads(self.embedded.restore(path))
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            self.embedded.restore(path)
         else:
             raise RuntimeError('Remote databases cannot be restored remotely')
 
@@ -218,10 +208,7 @@ class Client:
                           in the database.
         """
         if self.embedded:
-            payload = json.dumps({'path': path, 'relations': relations}, ensure_ascii=False)
-            res = json.loads(self.embedded.import_from_backup(payload))
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            self.embedded.import_from_backup(path, relations)
         else:
             import requests
 
