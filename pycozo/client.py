@@ -218,6 +218,26 @@ class Client:
             if not res['ok']:
                 raise RuntimeError(res['message'])
 
+    def multi_transact(self, write=False):
+        if self.embedded:
+            return MultiTransact(self.embedded.multi_transact(write))
+        else:
+            raise RuntimeError('Multi-transaction not yet supported for remote')
+
+
+class MultiTransact:
+    def __init__(self, multi_tx):
+        self.multi_tx = multi_tx
+
+    def commit(self):
+        return self.multi_tx.commit()
+
+    def abort(self):
+        return self.multi_tx.abort()
+
+    def run(self, script, params=None):
+        return self.multi_tx.run_script(script, params or {})
+
 
 class QueryException(Exception):
     """The exception class for queries. `repr(e)` will pretty format the exceptions into ANSI-coloured messages.

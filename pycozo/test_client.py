@@ -55,6 +55,19 @@ def test_client():
     r = client.run("?[z] <- [[$z]]", {'z': data})
     assert r['rows'][0][0] == data
 
+    tx = client.multi_transact(True)
+    tx.run(':create a {a}')
+    tx.run('?[a] <- [[1]] :put a {a}')
+    try:
+        tx.run(':create a {a}')
+    except:
+        pass
+    tx.run('?[a] <- [[2]] :put a {a}')
+    tx.run('?[a] <- [[3]] :put a {a}')
+    tx.commit()
+    r = client.run('?[a] := *a[a]')
+    assert r['rows'] == [[1], [2], [3]]
+
 
 if __name__ == '__main__':
     test_client()
