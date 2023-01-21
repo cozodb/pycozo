@@ -87,9 +87,83 @@ except Exception as e:
 
 在嵌入模式下，`Client` 执行查询时会释放 [GIL](https://wiki.python.org/moin/GlobalInterpreterLock) ，因此与原生的 Python 程序不同，多线程查询确实会并行查询。
 
+嵌入式的数据库与 Python 运行时直接交换数据（不会经过转化为 JSON 的过程）。因此你可以直接传入字节数组为参数，且查询返回的字节数组也不需要解码。
+
+
 ### 其它操作
 
 `Client` 类有有以下方法：`export_relations`、`import_relations`、`backup`、`restore`、 `import_from_backup`，其作用见 [此文档](https://docs.cozodb.org/zh_CN/latest/nonscript.html) 。
+
+### 多语句事务
+
+你可以将同一个事务中的多个查询语句与 Python 代码交叉执行，如下例：
+
+```python
+tx = client.multi_transact(True) # False 或不传参数代表只读事务
+
+tx.run(':create a {a}')
+tx.run('?[a] <- [[1]] :put a {a}')
+try:
+    tx.run(':create a {a}')
+except:
+    pass
+
+tx.run('?[a] <- [[2]] :put a {a}')
+tx.run('?[a] <- [[3]] :put a {a}')
+tx.commit() # `tx.abort()` 会舍弃所有更改并删除事务相关联的系统资源
+
+r = client.run('?[a] := *a[a]')
+assert r['rows'] == [[1], [2], [3]]
+```
+
+事务结束时，你 **必须** 调用 `tx.commit()` 或 `tx.abort()` ，否则系统资源会泄露。
+
+### 更改回调
+
+你可以设置在存储表被更改时会被调用的回调函数。例子：
+
+```python
+# 回调函数必须接受三个参数
+def cb(op_name, new_rows, old_rows):
+    # op_name 是 'Put' 或 'Rm'
+    # new_rows 是一个包含列表的列表，包含新的行（要求插入或删除的行）
+    # old_rows 是一个包含列表的列表，包含旧的行（被更改的行的旧值，或被删除的行）
+    pass
+
+# 回调函数在存储表 test_rel 被更改时会被调用
+cb_id = client.register_callback('test_rel', cb)
+
+# 程序的其它逻辑
+
+# 注册回调函数时返回的值可以用来删除注册
+# client.unregister_callback(cb_id)
+```
+
+### 自定义固定规则
+
+你可以使用 Python 来自定义固定规则。例子：
+
+```python
+# 固定规则的实现，必须接受两个参数
+def rule_impl(inputs, options):
+    # inputs 是一个列表的列表的列表，含有固定规则被调用时传入的表
+    # option 是一个字符串键的字典，包含被调用时传入的参数
+    
+    # 必须返回列表（或元组）的列表作为固定规则的返回表。如果无法返回（比如参数错误等），直接抛出异常即可。
+    return [('Nicely',), ('Done!',)]
+
+# 注册固定规则。第二个参数是返回列表的列数，必须与实现中返回的列数相同。
+client.register_fixed_rule('Custom', 1, rule_impl)
+
+r = client.run("""
+    rel[u, v, w] <- [[1,2,3],[4,5,6]]
+    ?[] <~ Custom(rel[], x: 1, y: null)
+""")
+assert r['rows'] == [['Done!'], ['Nicely']]
+
+# 取消注册的固定规则
+client.unregister_fixed_rule('Custom')
+```
 
 ## Jupyter 工具
 

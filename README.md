@@ -101,10 +101,93 @@ except Exception as e:
 In the embedded mode, `Client` will release the [GIL](https://wiki.python.org/moin/GlobalInterpreterLock)
 when executing queries so that multiple queries in different threads can proceed concurrently.
 
+The embedded database exchanges data with the Python runtime directly, without going through JSON.
+Hence you can pass Python bytes directly in named parameters, and bytes returned by the
+database does not need any decoding.
+
 ### Other operations
 
 `Client` has other methods on it: `export_relations`, `import_relations`, `backup`,
 `restore` and `import_from_backup`. See the [doc](https://docs.cozodb.org/en/latest/nonscript.html) for more details.
+
+### Multi-statement transaction
+
+You can intersperse Cozo statements within a single transaction with
+Python computations by using a multi-statement transaction.
+
+```python
+tx = client.multi_transact(True) # Pass False or nothing for read-only transaction
+
+tx.run(':create a {a}')
+tx.run('?[a] <- [[1]] :put a {a}')
+try:
+    tx.run(':create a {a}')
+except:
+    pass
+
+tx.run('?[a] <- [[2]] :put a {a}')
+tx.run('?[a] <- [[3]] :put a {a}')
+tx.commit() # `tx.abort()` abandons the changes so far 
+            # and deletes resources associated with the transaction.
+
+r = client.run('?[a] := *a[a]')
+assert r['rows'] == [[1], [2], [3]]
+```
+
+You **must** run either `tx.commit()` or `tx.abort()` at the end, otherwise
+you will have a resource leak.
+
+### Mutation callbacks
+
+You can register functions to run whenever mutations are made against stored relations. As an example:
+
+```python
+# callbacks must be callable and accept three arguments
+def cb(op_name, new_rows, old_rows):
+    # op_name is 'Put' or 'Rm'
+    # new_rows is a list of lists containing the new rows (i.e., requested puts or deletes)
+    # old_rows is a list of lists containing the changed rows (i.e., the old rows in the case of puts, 
+    # or the rows actually deleted in the case of deletes)
+    pass
+
+# this registers the callback to run when the stored relation `test_rel` changes
+cb_id = client.register_callback('test_rel', cb)
+
+# your application logic here
+
+# use the returned id for unregistration
+# client.unregister_callback(cb_id)
+```
+
+### User-defined fixed rules
+
+You can define your own fixed rules in Python to be used inside Cozo queries. As an example:
+
+```python
+# custom rule implementation, must accept two arguments
+def rule_impl(inputs, options):
+    # inputs is a list of lists of lists, representing the input relations to the rule
+    # option is a dict with string keys, representing the options passed in when the rule is called
+    
+    # You should return a list of tuples (or lists) to represent the return relation of the rule.
+    # Here the returned relation has arity one.
+    # If you cannot perform the computation due to any reason (wrong parameters, etc.),
+    # simply raise an exception.
+    return [('Nicely',), ('Done!',)]
+
+# Actually registering the rule, the second argument is the arity, must match the actual arity
+# of the relation returned by the implementation.
+client.register_fixed_rule('Custom', 1, rule_impl)
+
+r = client.run("""
+    rel[u, v, w] <- [[1,2,3],[4,5,6]]
+    ?[] <~ Custom(rel[], x: 1, y: null)
+""")
+assert r['rows'] == [['Done!'], ['Nicely']]
+
+# Custom rules can be unregistered
+client.unregister_fixed_rule('Custom')
+```
 
 ## Jupyter helper
 
