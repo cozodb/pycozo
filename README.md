@@ -43,6 +43,10 @@ client = Client('sqlite', 'file.db')
 
 RocksDB-backed (highly concurrent persistent storage):
 
+```python
+client = Client('rocksdb', 'file.db')
+```
+
 Connecting to a standalone server:
 
 ```python
