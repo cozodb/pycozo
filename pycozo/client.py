@@ -5,6 +5,9 @@
 #  You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import json
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class Client:
@@ -34,8 +37,11 @@ class Client:
         """
         self.pandas = None
         if engine == 'http':
-            self.host = options.host
-            self.auth = options.auth
+            self.host = options['host']
+            self.auth = options.get('auth')
+            self.embedded = None
+            self._remote_sse = {}
+            self._remote_cb_id = 0
         else:
             from cozo_embedded import CozoDbPy
             self.embedded = CozoDbPy(engine, path, json.dumps(options or {}))
@@ -44,8 +50,8 @@ class Client:
             try:
                 import pandas
                 self.pandas = pandas
-            except ImportError as _:
-                print('`pandas` feature was requested, but pandas is not installed')
+            except ImportError:
+                logger.exception('`pandas` feature was requested, but pandas is not installed')
                 pass
 
     def close(self):
@@ -162,17 +168,51 @@ class Client:
             if not res['ok']:
                 raise RuntimeError(res['message'])
 
-    def register_callback(self, relation, callback):
+    def register_callback(self, relation, callback, on_finish=None):
         if self.embedded:
             return self.embedded.register_callback(relation, callback)
         else:
-            raise RuntimeError('Only supported on embedded DBs')
+            import threading
+
+            tid = self._remote_cb_id
+            self._remote_cb_id += 1
+            url = f'{self.host}/changes/{relation}'
+            thread = threading.Thread(target=self._start_sse, args=(tid, url, callback, on_finish), daemon=True)
+            thread.start()
+            self._remote_sse[tid] = {'thread': thread}
+
+            return tid
+
+    def _start_sse(self, tid, url, callback, on_finish):
+        import requests
+        logger.info('Starting SSE thread')
+        headers = {'Accept': 'text/event-stream', 'Accept-Encoding': ''}
+
+        with requests.get(url, stream=True, headers=headers) as response:
+            response.raise_for_status()
+
+            buffer = b""
+            for chunk in response.iter_content(chunk_size=1):
+                if tid not in self._remote_sse:
+                    logger.info('Stopping SSE thread')
+                    if on_finish:
+                        on_finish('manually_stopped')
+                    return
+                buffer += chunk
+                if buffer.endswith(b'\n\n'):
+                    event_text = buffer.decode('utf-8').strip()
+                    if event_text.startswith('data:'):
+                        payload = json.loads(event_text[5:].strip())
+                        callback(payload['op'], payload['new_rows']['rows'], payload['old_rows']['rows'])
+                    buffer = b""
+            if on_finish:
+                on_finish('unexpected_end')
 
     def unregister_callback(self, cb_id):
         if self.embedded:
             self.embedded.unregister_callback(cb_id)
         else:
-            raise RuntimeError('Only supported on embedded DBs')
+            del self._remote_sse[cb_id]
 
     def register_fixed_rule(self, name, arity, impl):
         if self.embedded:
@@ -223,6 +263,50 @@ class Client:
             return MultiTransact(self.embedded.multi_transact(write))
         else:
             raise RuntimeError('Multi-transaction not yet supported for remote')
+
+    def _process_mutate_data_dict(self, data):
+        cols = []
+        row = []
+        for k, v in data.items():
+            cols.append(k)
+            row.append(v)
+        return cols, row
+
+    def _process_mutate_data(self, data):
+        if isinstance(data, dict):
+            cols, row = self._process_mutate_data_dict(data)
+            return ','.join(cols), [row]
+        elif isinstance(data, list):
+            cols, row = self._process_mutate_data_dict(data[0])
+            rows = [row]
+            for el in data[1:]:
+                nxt_row = []
+                for col in cols:
+                    nxt_row.append(el[col])
+                rows.append(nxt_row)
+            return ','.join(cols), rows
+        else:
+            import pandas as pd
+            if isinstance(data, pd.DataFrame):
+                cols = data.columns.tolist()
+                rows = data.values.tolist()
+                return ', '.join(cols), rows
+            else:
+                raise RuntimeError('Invalid data type for mutation')
+
+    def _mutate(self, relation, data, op):
+        cols_str, processed_data = self._process_mutate_data(data)
+        q = f'?[{cols_str}] <- $data :{op} {relation} {{ {cols_str} }}'
+        return self.run(q, {'data': processed_data})
+
+    def put(self, relation, data):
+        return self._mutate(relation, data, 'put')
+
+    def update(self, relation, data):
+        return self._mutate(relation, data, 'update')
+
+    def rm(self, relation, data):
+        return self._mutate(relation, data, 'rm')
 
 
 class MultiTransact:

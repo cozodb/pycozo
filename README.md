@@ -4,7 +4,7 @@
 
 Python client and Jupyter helper for [CozoDB](https://www.cozodb.org).
 
-This document describes how to set up Cozo in Python.
+This document describes how to set up CozoDB in Python.
 To learn how to use CozoDB (CozoScript), read the [docs](https://docs.cozodb.org/en/latest/index.html).
 
 ## Install
@@ -105,6 +105,20 @@ The embedded database exchanges data with the Python runtime directly, without g
 Hence you can pass Python bytes directly in named parameters, and bytes returned by the
 database does not need any decoding.
 
+#### Convenience methods
+
+`Client` has convenience methods for common operations:
+
+```python
+client.put('test_rel', {'a': 1, 'b': 2, 'c': 3})
+client.put('test_rel', [{'a': 3, 'b': 4, 'c': 2}, {'a': 5, 'b': 6, 'c': 7}])
+client.put('test_rel', pandas.DataFrame({'a': [7, 8, 9], 'b': [9, 10, 11], 'c': [12, 13, 14]}))
+# for update, only specify the keys and the values you want to update
+client.update('test_rel', {'a': 7, 'b': 8})
+# for rm, only the keys are needed
+client.rm('test_rel', [{'a': 9}, {'a': 11}])
+```
+
 ### Other operations
 
 `Client` has other methods on it: `export_relations`, `import_relations`, `backup`,
@@ -112,7 +126,7 @@ database does not need any decoding.
 
 ### Multi-statement transaction
 
-You can intersperse Cozo statements within a single transaction with
+You can intersperse CozoDB statements within a single transaction with
 Python computations by using a multi-statement transaction.
 
 ```python
@@ -161,7 +175,7 @@ cb_id = client.register_callback('test_rel', cb)
 
 ### User-defined fixed rules
 
-You can define your own fixed rules in Python to be used inside Cozo queries. As an example:
+You can define your own fixed rules in Python to be used inside CozoDB queries. As an example:
 
 ```python
 # custom rule implementation, must accept two arguments

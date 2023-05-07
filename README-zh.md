@@ -12,7 +12,7 @@
 pip install "pycozo[embedded,requests,pandas]"
 ```
 
-如果想通过嵌入模式使用 Cozo，则必须指定 `embedded` 选项；如果想通过 HTTP 请求模式连接 Cozo 服务器，则必须指定 `requests` 选项。`pandas` 选项会安装 `pandas` 包，并在查询返回结果时将其转换为 Pandas 数据帧。在使用 Jupyter 中使用 pycozo 时建议打开 `pandas` 选项。
+如果想通过嵌入模式使用 CozoDB，则必须指定 `embedded` 选项；如果想通过 HTTP 请求模式连接 CozoDB 服务器，则必须指定 `requests` 选项。`pandas` 选项会安装 `pandas` 包，并在查询返回结果时将其转换为 Pandas 数据帧。在使用 Jupyter 中使用 pycozo 时建议打开 `pandas` 选项。
 
 ## Python 客户端
 
@@ -38,7 +38,7 @@ client = Client('sqlite', 'file.db')
 
 基于 RocksDB 引擎的数据库（性能强劲，支持高并发）：
 
-通过 HTTP 连接独立的 Cozo 数据库服务：
+通过 HTTP 连接独立的 CozoDB 服务：
 
 ```python
 client = Client('http', options={'host': 'http://127.0.0.1:9070'})
