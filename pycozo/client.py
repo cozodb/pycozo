@@ -168,7 +168,7 @@ class Client:
             if not res['ok']:
                 raise RuntimeError(res['message'])
 
-    def register_callback(self, relation, callback, on_finish=None):
+    def register_callback(self, relation, callback):
         if self.embedded:
             return self.embedded.register_callback(relation, callback)
         else:
@@ -177,36 +177,49 @@ class Client:
             tid = self._remote_cb_id
             self._remote_cb_id += 1
             url = f'{self.host}/changes/{relation}'
-            thread = threading.Thread(target=self._start_sse, args=(tid, url, callback, on_finish), daemon=True)
+            thread = threading.Thread(target=self._start_sse, args=(tid, url, callback), daemon=True)
             thread.start()
             self._remote_sse[tid] = {'thread': thread}
 
             return tid
 
-    def _start_sse(self, tid, url, callback, on_finish):
+    def _start_sse(self, tid, url, callback, min_delay=1, max_delay=60):
         import requests
         logger.info('Starting SSE thread')
         headers = {'Accept': 'text/event-stream', 'Accept-Encoding': ''}
 
-        with requests.get(url, stream=True, headers=headers) as response:
-            response.raise_for_status()
+        consecutive_failures = 0
 
-            buffer = b""
-            for chunk in response.iter_content(chunk_size=1):
-                if tid not in self._remote_sse:
-                    logger.info('Stopping SSE thread')
-                    if on_finish:
-                        on_finish('manually_stopped')
-                    return
-                buffer += chunk
-                if buffer.endswith(b'\n\n'):
-                    event_text = buffer.decode('utf-8').strip()
-                    if event_text.startswith('data:'):
-                        payload = json.loads(event_text[5:].strip())
-                        callback(payload['op'], payload['new_rows']['rows'], payload['old_rows']['rows'])
+        while True:
+            try:
+                with requests.get(url, stream=True, headers=headers) as response:
+                    response.raise_for_status()
+
+                    consecutive_failures = 0
+
                     buffer = b""
-            if on_finish:
-                on_finish('unexpected_end')
+                    for chunk in response.iter_content(chunk_size=1):
+                        if tid not in self._remote_sse:
+                            logger.info('Stopping SSE thread')
+                            return
+                        buffer += chunk
+                        if buffer.endswith(b'\n\n'):
+                            event_text = buffer.decode('utf-8').strip()
+                            if event_text.startswith('data:'):
+                                payload = json.loads(event_text[5:].strip())
+                                callback(payload['op'], payload['new_rows']['rows'], payload['old_rows']['rows'])
+                            buffer = b""
+            except Exception as e:
+                import time
+
+                logger.error(f'Error in SSE thread: {e}')
+                consecutive_failures += 1
+
+                # Exponential backoff with a cap at max_delay
+                backoff_delay = min(min_delay * (2 ** (consecutive_failures - 1)), max_delay)
+
+                logger.info(f'Sleeping for {backoff_delay} seconds before retrying...')
+                time.sleep(backoff_delay)
 
     def unregister_callback(self, cb_id):
         if self.embedded:
@@ -290,7 +303,7 @@ class Client:
             if isinstance(data, pd.DataFrame):
                 cols = data.columns.tolist()
                 rows = data.values.tolist()
-                return ', '.join(cols), rows
+                return ','.join(cols), rows
             else:
                 raise RuntimeError('Invalid data type for mutation')
 
