@@ -134,7 +134,7 @@ You can intersperse CozoDB statements within a single transaction with
 Python computations by using a multi-statement transaction.
 
 ```python
-tx = client.multi_transact(True) # Pass False or nothing for read-only transaction
+tx = client.multi_transact(True)  # Pass False or nothing for read-only transaction
 
 tx.run(':create a {a}')
 tx.run('?[a] <- [[1]] :put a {a}')
@@ -145,8 +145,8 @@ except:
 
 tx.run('?[a] <- [[2]] :put a {a}')
 tx.run('?[a] <- [[3]] :put a {a}')
-tx.commit() # `tx.abort()` abandons the changes so far 
-            # and deletes resources associated with the transaction.
+tx.commit()  # `tx.abort()` abandons the changes so far 
+# and deletes resources associated with the transaction.
 
 r = client.run('?[a] := *a[a]')
 assert r['rows'] == [[1], [2], [3]]
@@ -168,6 +168,7 @@ def cb(op_name, new_rows, old_rows):
     # or the rows actually deleted in the case of deletes)
     pass
 
+
 # this registers the callback to run when the stored relation `test_rel` changes
 cb_id = client.register_callback('test_rel', cb)
 
@@ -186,12 +187,13 @@ You can define your own fixed rules in Python to be used inside CozoDB queries. 
 def rule_impl(inputs, options):
     # inputs is a list of lists of lists, representing the input relations to the rule
     # option is a dict with string keys, representing the options passed in when the rule is called
-    
+
     # You should return a list of tuples (or lists) to represent the return relation of the rule.
     # Here the returned relation has arity one.
     # If you cannot perform the computation due to any reason (wrong parameters, etc.),
     # simply raise an exception.
     return [('Nicely',), ('Done!',)]
+
 
 # Actually registering the rule, the second argument is the arity, must match the actual arity
 # of the relation returned by the implementation.
@@ -262,6 +264,12 @@ There are other magic commands you can use:
   with string keys.
 * `%cozo_clear` clears all set parameters.
 * `%cozo_params` returns the parameters currently set.
+
+## Programmatically constructing queries
+
+You can use builders in `pycozo.builder` to construct queries programmatically.
+This is both safer and more convenient than concatenating strings.
+See [here](./pycozo/test_builder.py) for how to use it.
 
 ## Building
 

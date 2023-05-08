@@ -70,6 +70,9 @@ class StoreOp(Enum):
     ENSURE = 'ensure'
     ENSURE_NOT = 'ensure_not'
 
+    def __str__(self):
+        return ':' + self.value
+
 
 @dataclass
 class Sorter:
@@ -110,7 +113,7 @@ class RuleHead:
 @dataclass
 class InputRelation:
     name: str
-    keys: list[str] = field(default_factory=list)
+    keys: list[str]
     values: list[str] = field(default_factory=list)
 
     def __str__(self):
@@ -122,7 +125,8 @@ class InputRelation:
             ret += ' => '
             for v in self.values:
                 ret += f'{v}, '
-
+        if ret.endswith(', '):
+            ret = ret[:-2]
         ret += ' }'
         return ret
 
@@ -158,7 +162,10 @@ class StoredRuleNamedApply:
             ret += f'{k}: {v}, '
         if self.validity:
             ret += f'| @{self.validity}'
+        if ret.endswith(', '):
+            ret = ret[:-2]
         ret += '}'
+        return ret
 
 
 @dataclass
@@ -292,22 +299,5 @@ class InputProgram:
         if len(self.sorters) > 0:
             ret += ':sort ' + ', '.join(map(str, self.sorters)) + '\n'
         if self.store_relation:
-            ret += f':{self.store_relation[0]} {self.store_relation[1]}' + '\n'
+            ret += f'{self.store_relation[0]} {self.store_relation[1]}' + '\n'
         return ret.strip()
-
-
-if __name__ == '__main__':
-    rules = [
-        ConstantRule(RuleHead('parent', []),
-                     Const([['abraham', 'isaac'],
-                            ['isaac', 'jakob'],
-                            ['jakob', 'joseph']])),
-        InlineRule(RuleHead('grandparent', ['A', 'C']),
-                   [RuleApply('parent', ['A', 'B']), RuleApply('parent', ['B', 'C'])], ),
-        InlineRule(RuleHead('great_grandparent', ['A', 'D']),
-                   [RuleApply('parent', ['A', 'B']), RuleApply('parent', ['B', 'C']), RuleApply('parent', ['C', 'D'])]),
-        InlineRule(RuleHead('?', ['who']),
-                   [RuleApply('great_grandparent', [Const('abraham'), 'who'])])
-    ]
-    program = InputProgram(rules, limit=10)
-    print(program)
