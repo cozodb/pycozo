@@ -193,7 +193,7 @@ class Conjunction:
         ret = ''
         for part in self.atoms:
             if ret != '':
-                ret += ' and (' + str(part) + ')'
+                ret += ', (' + str(part) + ')'
             else:
                 ret += '(' + str(part) + ')'
 

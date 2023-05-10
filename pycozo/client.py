@@ -352,3 +352,7 @@ class QueryException(Exception):
 
     def _repr_pretty_(self, p, cycle):
         p.text(repr(self))
+
+    @property
+    def code(self):
+        return self.resp.get('code')
