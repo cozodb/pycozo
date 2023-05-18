@@ -312,6 +312,9 @@ class Client:
         q = f'?[{cols_str}] <- $data :{op} {relation} {{ {cols_str} }}'
         return self.run(q, {'data': processed_data})
 
+    def insert(self, relation, data):
+        return self._mutate(relation, data, 'insert')
+
     def put(self, relation, data):
         return self._mutate(relation, data, 'put')
 
@@ -345,7 +348,10 @@ class QueryException(Exception):
         self.resp = resp
 
     def __repr__(self):
-        return self.resp.get('display') or self.resp.get('message') or str(self.resp)
+        if hasattr(self.resp, 'get'):
+            return self.resp.get('display') or self.resp.get('message') or str(self.resp)
+        else:
+            return str(self.resp)
 
     def __str__(self):
         return self.resp.get('message') or str(self.resp)

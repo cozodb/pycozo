@@ -237,7 +237,15 @@ class Cond:
         return 'cond ' + ', '.join(f'{k}, {v}, ' for k, v in self.clauses)
 
 
-Atom: TypeAlias = Expr | Cond | Bind | RuleApply | StoredRuleApply | StoredRuleNamedApply | Conjunction | Disjunction | Negation
+@dataclass
+class RawAtom:
+    script: str
+
+    def __str__(self):
+        return f'({self.script})'
+
+
+Atom: TypeAlias = Expr | Cond | Bind | RuleApply | StoredRuleApply | StoredRuleNamedApply | Conjunction | Disjunction | Negation | RawAtom
 
 
 @dataclass
