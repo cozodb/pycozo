@@ -70,12 +70,13 @@ class Client:
             'x-cozo-auth': self.auth
         }
 
-    def _client_request(self, script, params=None):
+    def _client_request(self, script, params=None, immutable=False):
         import requests
 
         r = requests.post(f'{self.host}/text-query', headers=self._headers(), json={
             'script': script,
-            'params': params or {}
+            'params': params or {},
+            'immutable': immutable
         })
         res = r.json()
         return self._format_return(res)
@@ -89,9 +90,9 @@ class Client:
         else:
             return res
 
-    def _embedded_request(self, script, params=None):
+    def _embedded_request(self, script, params=None, immutable=False):
         try:
-            res = self.embedded.run_script(script, params or {})
+            res = self.embedded.run_script(script, params or {}, immutable)
         except Exception as e:
             raise QueryException(e.args[0]) from None
         if self.pandas:
@@ -99,7 +100,7 @@ class Client:
         else:
             return res
 
-    def run(self, script, params=None):
+    def run(self, script, params=None, immutable=False):
         """Run a given CozoScript query.
 
         :param script: the query in CozoScript
@@ -107,9 +108,9 @@ class Client:
         :return: the query result as a dict, or a pandas dataframe if the `dataframe` option was true.
         """
         if self.embedded is None:
-            return self._client_request(script, params)
+            return self._client_request(script, params, immutable)
         else:
-            return self._embedded_request(script, params)
+            return self._embedded_request(script, params, immutable)
 
     def export_relations(self, relations):
         """Export the specified relations.
@@ -163,7 +164,7 @@ class Client:
         else:
             import requests
 
-            r = requests.post(f'{self.host}/backup/', headers=self._headers(), json={'path': path})
+            r = requests.post(f'{self.host}/backup', headers=self._headers(), json={'path': path})
             res = r.json()
             if not res['ok']:
                 raise RuntimeError(res['message'])
