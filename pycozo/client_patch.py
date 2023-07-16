@@ -46,7 +46,6 @@ dict_keys(['ABCs', 'table123'])
 0         ABCs      7       normal       7           0               0              0                   0            
 1     table123      3       normal       3           0               0              0                   0            
 2  users_table      3       normal       3           0               0              0                   0            
->>> hist -o -p
 """
 
 
