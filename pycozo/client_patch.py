@@ -3,7 +3,6 @@ from pycozo import *  # noqa
 from pycozo import client
 
 """ Thin wrapper for pycozo.client.Client adding create(), relations(), 
->>> from nlpia2.pycozo_enhanced_client import *
 >>> db = Client()
 >>> db.relations()
 Empty DataFrame
