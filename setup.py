@@ -6,7 +6,7 @@
 
 from setuptools import setup
 
-VERSION = '0.7.2'
+VERSION = '0.7.5'
 
 setup(
     name='pycozo',
