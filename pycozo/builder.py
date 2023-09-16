@@ -6,7 +6,7 @@
 import json
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import Any, TypeAlias, Union
+from typing import Any, Union
 
 
 @dataclass
@@ -33,7 +33,7 @@ class InputParam:
         return '$' + self.name
 
 
-Expr: TypeAlias = Union[str | Var, Const, InputParam, 'InputObject', 'InputList', 'OpApply']
+Expr = Union[str | Var, Const, InputParam, 'InputObject', 'InputList', 'OpApply']
 
 
 @dataclass
@@ -245,7 +245,7 @@ class RawAtom:
         return f'({self.script})'
 
 
-Atom: TypeAlias = Expr | Cond | Bind | RuleApply | StoredRuleApply | StoredRuleNamedApply | Conjunction | Disjunction | Negation | RawAtom
+Atom = Expr | Cond | Bind | RuleApply | StoredRuleApply | StoredRuleNamedApply | Conjunction | Disjunction | Negation | RawAtom
 
 
 @dataclass
