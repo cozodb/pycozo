@@ -16,7 +16,7 @@ class Client:
     This client can either operate on an embedded database, or a remote database via HTTP.
     """
 
-    def __init__(self, engine='mem', path='', options=None, *, dataframe=True):
+    def __init__(self, engine="mem", path="", options=None, *, dataframe=True):
         """Constructor for the client. The behaviour depends on the argument.
 
         If the database `db` is an embedded one, and you do not intend it to live as long as your program, you **must**
@@ -36,22 +36,26 @@ class Client:
                           must be installed.
         """
         self.pandas = None
-        if engine == 'http':
-            self.host = options['host']
-            self.auth = options.get('auth')
+        if engine == "http":
+            self.host = options["host"]
+            self.auth = options.get("auth")
             self.embedded = None
             self._remote_sse = {}
             self._remote_cb_id = 0
         else:
             from cozo_embedded import CozoDbPy
+
             self.embedded = CozoDbPy(engine, path, json.dumps(options or {}))
 
         if dataframe:
             try:
                 import pandas
+
                 self.pandas = pandas
             except ImportError:
-                logger.exception('`pandas` feature was requested, but pandas is not installed')
+                logger.exception(
+                    "`pandas` feature was requested, but pandas is not installed"
+                )
                 pass
 
     def close(self):
@@ -66,27 +70,25 @@ class Client:
             self.embedded.close()
 
     def _headers(self):
-        return {
-            'x-cozo-auth': self.auth
-        }
+        return {"x-cozo-auth": self.auth}
 
     def _client_request(self, script, params=None, immutable=False):
         import requests
 
-        r = requests.post(f'{self.host}/text-query', headers=self._headers(), json={
-            'script': script,
-            'params': params or {},
-            'immutable': immutable
-        })
+        r = requests.post(
+            f"{self.host}/text-query",
+            headers=self._headers(),
+            json={"script": script, "params": params or {}, "immutable": immutable},
+        )
         res = r.json()
         return self._format_return(res)
 
     def _format_return(self, res):
-        if not res['ok']:
+        if not res["ok"]:
             raise QueryException(res)
 
         if self.pandas:
-            return self.pandas.DataFrame(columns=res['headers'], data=res['rows'])
+            return self.pandas.DataFrame(columns=res["headers"], data=res["rows"])
         else:
             return res
 
@@ -96,7 +98,7 @@ class Client:
         except Exception as e:
             raise QueryException(e.args[0]) from None
         if self.pandas:
-            return self.pandas.DataFrame(columns=res['headers'], data=res['rows'])
+            return self.pandas.DataFrame(columns=res["headers"], data=res["rows"])
         else:
             return res
 
@@ -124,15 +126,15 @@ class Client:
             import requests
             import urllib.parse
 
-            rels = ','.join(map(lambda s: urllib.parse.quote_plus(s), relations))
-            url = f'{self.host}/export/{rels}'
+            rels = ",".join(map(lambda s: urllib.parse.quote_plus(s), relations))
+            url = f"{self.host}/export/{rels}"
 
             r = requests.get(url, headers=self._headers())
             res = r.json()
-            if res['ok']:
-                return res['data']
+            if res["ok"]:
+                return res["data"]
             else:
-                raise RuntimeError(res['message'])
+                raise RuntimeError(res["message"])
 
     def import_relations(self, data):
         """Import data into a database
@@ -147,12 +149,13 @@ class Client:
             self.embedded.import_relations(data)
         else:
             import requests
-            url = f'{self.host}/import'
+
+            url = f"{self.host}/import"
 
             r = requests.put(url, headers=self._headers(), json=data)
             res = r.json()
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            if not res["ok"]:
+                raise RuntimeError(res["message"])
 
     def backup(self, path):
         """Backup a database to the specified path.
@@ -164,10 +167,12 @@ class Client:
         else:
             import requests
 
-            r = requests.post(f'{self.host}/backup', headers=self._headers(), json={'path': path})
+            r = requests.post(
+                f"{self.host}/backup", headers=self._headers(), json={"path": path}
+            )
             res = r.json()
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            if not res["ok"]:
+                raise RuntimeError(res["message"])
 
     def register_callback(self, relation, callback):
         if self.embedded:
@@ -177,17 +182,20 @@ class Client:
 
             tid = self._remote_cb_id
             self._remote_cb_id += 1
-            url = f'{self.host}/changes/{relation}'
-            thread = threading.Thread(target=self._start_sse, args=(tid, url, callback), daemon=True)
+            url = f"{self.host}/changes/{relation}"
+            thread = threading.Thread(
+                target=self._start_sse, args=(tid, url, callback), daemon=True
+            )
             thread.start()
-            self._remote_sse[tid] = {'thread': thread}
+            self._remote_sse[tid] = {"thread": thread}
 
             return tid
 
     def _start_sse(self, tid, url, callback, min_delay=1, max_delay=60):
         import requests
-        logger.info('Starting SSE thread')
-        headers = {'Accept': 'text/event-stream', 'Accept-Encoding': ''}
+
+        logger.info("Starting SSE thread")
+        headers = {"Accept": "text/event-stream", "Accept-Encoding": ""}
 
         consecutive_failures = 0
 
@@ -201,25 +209,31 @@ class Client:
                     buffer = b""
                     for chunk in response.iter_content(chunk_size=1):
                         if tid not in self._remote_sse:
-                            logger.info('Stopping SSE thread')
+                            logger.info("Stopping SSE thread")
                             return
                         buffer += chunk
-                        if buffer.endswith(b'\n\n'):
-                            event_text = buffer.decode('utf-8').strip()
-                            if event_text.startswith('data:'):
+                        if buffer.endswith(b"\n\n"):
+                            event_text = buffer.decode("utf-8").strip()
+                            if event_text.startswith("data:"):
                                 payload = json.loads(event_text[5:].strip())
-                                callback(payload['op'], payload['new_rows']['rows'], payload['old_rows']['rows'])
+                                callback(
+                                    payload["op"],
+                                    payload["new_rows"]["rows"],
+                                    payload["old_rows"]["rows"],
+                                )
                             buffer = b""
             except Exception as e:
                 import time
 
-                logger.error(f'Error in SSE thread: {e}')
+                logger.error(f"Error in SSE thread: {e}")
                 consecutive_failures += 1
 
                 # Exponential backoff with a cap at max_delay
-                backoff_delay = min(min_delay * (2 ** (consecutive_failures - 1)), max_delay)
+                backoff_delay = min(
+                    min_delay * (2 ** (consecutive_failures - 1)), max_delay
+                )
 
-                logger.info(f'Sleeping for {backoff_delay} seconds before retrying...')
+                logger.info(f"Sleeping for {backoff_delay} seconds before retrying...")
                 time.sleep(backoff_delay)
 
     def unregister_callback(self, cb_id):
@@ -232,13 +246,13 @@ class Client:
         if self.embedded:
             return self.embedded.register_fixed_rule(name, arity, impl)
         else:
-            raise RuntimeError('Only supported on embedded DBs')
+            raise RuntimeError("Only supported on embedded DBs")
 
     def unregister_fixed_rule(self, name):
         if self.embedded:
             return self.embedded.unregister_fixed_rule(name)
         else:
-            raise RuntimeError('Only supported on embedded DBs')
+            raise RuntimeError("Only supported on embedded DBs")
 
     def restore(self, path):
         """Restore database from a backup. Must be called on an empty database.
@@ -249,7 +263,7 @@ class Client:
         if self.embedded:
             self.embedded.restore(path)
         else:
-            raise RuntimeError('Remote databases cannot be restored remotely')
+            raise RuntimeError("Remote databases cannot be restored remotely")
 
     def import_from_backup(self, path, relations):
         """Import stored relations from a backup.
@@ -266,17 +280,20 @@ class Client:
         else:
             import requests
 
-            r = requests.post(f'{self.host}/import-from-backup', headers=self._headers(),
-                              json={'path': path, 'relations': relations})
+            r = requests.post(
+                f"{self.host}/import-from-backup",
+                headers=self._headers(),
+                json={"path": path, "relations": relations},
+            )
             res = r.json()
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+            if not res["ok"]:
+                raise RuntimeError(res["message"])
 
     def multi_transact(self, write=False):
         if self.embedded:
             return MultiTransact(self.embedded.multi_transact(write))
         else:
-            raise RuntimeError('Multi-transaction not yet supported for remote')
+            raise RuntimeError("Multi-transaction not yet supported for remote")
 
     def _process_mutate_data_dict(self, data):
         cols = []
@@ -289,7 +306,7 @@ class Client:
     def _process_mutate_data(self, data):
         if isinstance(data, dict):
             cols, row = self._process_mutate_data_dict(data)
-            return ','.join(cols), [row]
+            return ",".join(cols), [row]
         elif isinstance(data, list):
             cols, row = self._process_mutate_data_dict(data[0])
             rows = [row]
@@ -298,37 +315,47 @@ class Client:
                 for col in cols:
                     nxt_row.append(el[col])
                 rows.append(nxt_row)
-            return ','.join(cols), rows
+            return ",".join(cols), rows
         else:
             import pandas as pd
+
             if isinstance(data, pd.DataFrame):
                 cols = data.columns.tolist()
                 rows = data.values.tolist()
-                return ','.join(cols), rows
+                return ",".join(cols), rows
             else:
-                raise RuntimeError('Invalid data type for mutation')
+                raise RuntimeError("Invalid data type for mutation")
 
     def _mutate(self, relation, data, op):
         cols_str, processed_data = self._process_mutate_data(data)
-        q = f'?[{cols_str}] <- $data :{op} {relation} {{ {cols_str} }}'
-        return self.run(q, {'data': processed_data})
+        q = f"?[{cols_str}] <- $data :{op} {relation} {{ {cols_str} }}"
+        return self.run(q, {"data": processed_data})
 
     def insert(self, relation, data):
-        return self._mutate(relation, data, 'insert')
+        return self._mutate(relation, data, "insert")
 
     def put(self, relation, data):
-        return self._mutate(relation, data, 'put')
+        return self._mutate(relation, data, "put")
 
     def update(self, relation, data):
-        return self._mutate(relation, data, 'update')
+        return self._mutate(relation, data, "update")
 
     def rm(self, relation, data):
-        return self._mutate(relation, data, 'rm')
+        return self._mutate(relation, data, "rm")
 
 
 class MultiTransact:
     def __init__(self, multi_tx):
         self.multi_tx = multi_tx
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self):
+        try:
+            self.abort()
+        except:
+            pass
 
     def commit(self):
         return self.multi_tx.commit()
@@ -341,25 +368,26 @@ class MultiTransact:
 
 
 class QueryException(Exception):
-    """The exception class for queries. `repr(e)` will pretty format the exceptions into ANSI-coloured messages.
-    """
+    """The exception class for queries. `repr(e)` will pretty format the exceptions into ANSI-coloured messages."""
 
     def __init__(self, resp):
         super().__init__()
         self.resp = resp
 
     def __repr__(self):
-        if hasattr(self.resp, 'get'):
-            return self.resp.get('display') or self.resp.get('message') or str(self.resp)
+        if hasattr(self.resp, "get"):
+            return (
+                self.resp.get("display") or self.resp.get("message") or str(self.resp)
+            )
         else:
             return str(self.resp)
 
     def __str__(self):
-        return self.resp.get('message') or str(self.resp)
+        return self.resp.get("message") or str(self.resp)
 
     def _repr_pretty_(self, p, cycle):
         p.text(repr(self))
 
     @property
     def code(self):
-        return self.resp.get('code')
+        return self.resp.get("code")
