@@ -145,7 +145,7 @@ except:
 
 tx.run('?[a] <- [[2]] :put a {a}')
 tx.run('?[a] <- [[3]] :put a {a}')
-tx.commit()  # `tx.abort()` abandons the changes so far 
+tx.commit()  # `tx.abort()` abandons the changes so far
 # and deletes resources associated with the transaction.
 
 r = client.run('?[a] := *a[a]')
@@ -154,6 +154,15 @@ assert r['rows'] == [[1], [2], [3]]
 
 You **must** run either `tx.commit()` or `tx.abort()` at the end, otherwise
 you will have a resource leak.
+
+To automatically clean up transactions, the return value of `client.multi-transact` can be used as a context-manager which automatically aborts the transaction at the end of the context if it has not already been committed.
+
+```python
+with client.multi_transact(True) as tx:
+    tx.run(':create a {a})
+    tx.run('?[a] <- [[1]] :put a {a}')
+    tx.commit()
+```
 
 ### Mutation callbacks
 
@@ -164,7 +173,7 @@ You can register functions to run whenever mutations are made against stored rel
 def cb(op_name, new_rows, old_rows):
     # op_name is 'Put' or 'Rm'
     # new_rows is a list of lists containing the new rows (i.e., requested puts or deletes)
-    # old_rows is a list of lists containing the changed rows (i.e., the old rows in the case of puts, 
+    # old_rows is a list of lists containing the changed rows (i.e., the old rows in the case of puts,
     # or the rows actually deleted in the case of deletes)
     pass
 
@@ -256,14 +265,14 @@ For how to determine the `<AUTH_STRING>`, see [here](https://github.com/cozodb/c
 
 There are other magic commands you can use:
 
-* `%cozo_run_file <PATH_TO_FILE>` runs a local file as CozoScript.
-* `%cozo_run_string <VARIABLE>` runs variable containing string as CozoScript.
-* `%cozo_set <KEY> <VALUE>` sets a parameter with the name `<KEY>` to the expression `<VALUE>`. The updated parameters will
+- `%cozo_run_file <PATH_TO_FILE>` runs a local file as CozoScript.
+- `%cozo_run_string <VARIABLE>` runs variable containing string as CozoScript.
+- `%cozo_set <KEY> <VALUE>` sets a parameter with the name `<KEY>` to the expression `<VALUE>`. The updated parameters will
   be used by subsequent queries.
-* `%cozo_set_params <PARAM_MAP>` replace all parameters by the given expression, which must evaluate to a dictionary
+- `%cozo_set_params <PARAM_MAP>` replace all parameters by the given expression, which must evaluate to a dictionary
   with string keys.
-* `%cozo_clear` clears all set parameters.
-* `%cozo_params` returns the parameters currently set.
+- `%cozo_clear` clears all set parameters.
+- `%cozo_params` returns the parameters currently set.
 
 ## Programmatically constructing queries
 
