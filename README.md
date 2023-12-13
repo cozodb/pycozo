@@ -155,6 +155,14 @@ assert r['rows'] == [[1], [2], [3]]
 You **must** run either `tx.commit()` or `tx.abort()` at the end, otherwise
 you will have a resource leak.
 
+To automatically clean up transactions, the return value of `client.multi-transact` can be used as a context-manager which automatically aborts the transaction at the end of the context if it has not already been committed.
+```python
+with client.multi_transact(True) as tx:
+    tx.run(':create a {a})
+    tx.run('?[a] <- [[1]] :put a {a}')
+    tx.commit()
+```
+
 ### Mutation callbacks
 
 You can register functions to run whenever mutations are made against stored relations. As an example:

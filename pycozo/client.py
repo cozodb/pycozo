@@ -330,6 +330,15 @@ class MultiTransact:
     def __init__(self, multi_tx):
         self.multi_tx = multi_tx
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self):
+        try:
+            self.abort()
+        except:
+            pass
+
     def commit(self):
         return self.multi_tx.commit()
 
