@@ -242,13 +242,12 @@ in-memory database. To override:
 %cozo_open <ENGINE>, <PATH>
 ```
 
-where `<ENGINE>` can now be `'sqlite'`, `'rocksdb'` or `'mem'`.
+where `<ENGINE>` can now be `'http'`, `'sqlite'`, `'rocksdb'` or `'mem'`.
 
 To connect to a standalone server, use
 
 ```
-%cozo_host http://<ADDRESS>:<PORT>
-%cozo_auth <AUTH_STRING>
+%cozo_open 'http', '', {'host': 'http://127.0.0.1:9070', 'auth': '<AUTH_STRING>'}
 ```
 
 where `<AUTH_STRING>` is optional if `<ADDRESS>` is a loopback address.
