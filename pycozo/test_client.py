@@ -3,11 +3,12 @@
 #  This Source Code Form is subject to the terms of the Mozilla Public License, v. 2.0.
 #  If a copy of the MPL was not distributed with this file,
 #  You can obtain one at https://mozilla.org/MPL/2.0/.
+import asyncio
 from pycozo import Client
 from pycozo.client import QueryException
 
 
-def test_client():
+async def test_client():
     client = Client(dataframe=False)
 
     collected = []
@@ -24,7 +25,7 @@ def test_client():
         options = o
         return [('Nicely',), ('Done!',)]
 
-    cb_id = client.register_callback('test', cb)
+    cb_id = await client.register_callback('test', cb)
     client.register_fixed_rule('Holy', 1, rule_impl)
     client.run("?[a, b, c] <- [[1,2,3]] :create test {a => b, c}")
     r = client.run("""
@@ -37,11 +38,11 @@ def test_client():
     assert collected == [('Put', [[1, 2, 3]], [])]
     assert inputs == [[[1, 2, 3], [4, 5, 6]]]
     assert options == {'x': 1, 'y': None}
-    exported = client.export_relations(['test'])
+    exported = await client.export_relations(['test'])
     assert exported['test']['rows'] == [[1, 2, 3]]
     raised = False
     try:
-        client.run("""
+        await client.run("""
                 rel[u, v, x] <- [[1,2,3],[4,5,6]]
                 
                 
@@ -52,7 +53,7 @@ def test_client():
     assert raised
 
     data = b'abcxyz'
-    r = client.run("?[z] <- [[$z]]", {'z': data})
+    r = await client.run("?[z] <- [[$z]]", {'z': data})
     assert r['rows'][0][0] == data
 
     tx = client.multi_transact(True)
@@ -65,9 +66,9 @@ def test_client():
     tx.run('?[a] <- [[2]] :put a {a}')
     tx.run('?[a] <- [[3]] :put a {a}')
     tx.commit()
-    r = client.run('?[a] := *a[a]')
+    r = await client.run('?[a] := *a[a]')
     assert r['rows'] == [[1], [2], [3]]
 
 
 if __name__ == '__main__':
-    test_client()
+    asyncio.run(test_client())

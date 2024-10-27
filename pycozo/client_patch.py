@@ -61,7 +61,7 @@ class Client(client.Client):
       query(name): run arbitrary cozo "select * where " query strings
     """
 
-    def create(self, name, *args, **kwargs):
+    async def create(self, name, *args, **kwargs):
         """ Create a new empty table with the table name and column labels indicated (positional args) 
 
         >>> db = Client()
@@ -75,9 +75,9 @@ class Client(client.Client):
         # pk_name = kwargs.get('pk', kwargs.get('index', kwargs.get('id', None)))
         # if pk_name is not None:
         #     self.run(f':create {name} {{{pk_name} => {", ".join([c for c in args])}}}')
-        return self.run(f':create {name} {{{", ".join([c for c in args])}}}')
+        return await self.run(f':create {name} {{{", ".join([c for c in args])}}}')
 
-    def relations(self, name=None):
+    async def relations(self, name=None):
         """ Return DataFrame listing all the relations (tables) with their names, arity, etc
 
         >>> db = Client()
@@ -97,28 +97,28 @@ class Client(client.Client):
         1  table123      3       normal       3           0               0              0                   0            
         """
         if name is None:
-            return self.run('::relations')
+            return await self.run('::relations')
         df = self.relations(name=None)
         if isinstance(name, str):
             return df.loc[df['name'] == name].copy()
         return df.loc[df['name'].isin(name)].copy()
 
-    def columns(self, name=None):
+    async def columns(self, name=None):
         """ DataFrame of columns for the named relation (tables) with their names, arity, etc 
 
         If name is None (default) return a dict of DataFrames, one DataFrame per relation (table)
         """
         if name is None:
             return {n: self.columns(name=str(n)) for n in self.relations()['name']}
-        return self.run(f'::columns {name}')
+        return await self.run(f'::columns {name}')
 
-    def query(self, query_str):
+    async def query(self, query_str):
         """ Execute a raw cozodb query string """
-        return self.run(f'?[] {query_str}')
+        return await self.run(f'?[] {query_str}')
 
-    def remove(self, name):
+    async def remove(self, name):
         """ Delete the named relation (table) """
-        return self.run(f'::remove {name}')
+        return await self.run(f'::remove {name}')
 
 
 client.Client = Client

@@ -21,7 +21,7 @@ setup(
     extras_require={
         'pandas': ['pandas', 'ipython'],
         'embedded': ['cozo-embedded==' + VERSION],
-        'client': ['requests']
+        'client': ['httpx']
     },
     classifiers=[
         "Development Status :: 3 - Alpha",

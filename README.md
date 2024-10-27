@@ -74,13 +74,13 @@ It is OK to close a client multiple times.
 ### Query
 
 ```python
-res = client.run(SCRIPT)
+res = await client.run(SCRIPT)
 ```
 
 If you need to bind variables:
 
 ```python
-res = client.run('?[] <- [[$name]]', {'name': 'Python'})
+res = await client.run('?[] <- [[$name]]', {'name': 'Python'})
 ```
 
 If `pandas` is available, a dataframe containing the results is returned.
@@ -94,7 +94,7 @@ If you want a nicely formatted message:
 
 ```python
 try:
-    res = client.run('BAD!')
+    res = await client.run('BAD!')
 except Exception as e:
     print(repr(e))
 ```
@@ -114,13 +114,13 @@ database does not need any decoding.
 `Client` has convenience methods for common operations:
 
 ```python
-client.put('test_rel', {'a': 1, 'b': 2, 'c': 3})
-client.put('test_rel', [{'a': 3, 'b': 4, 'c': 2}, {'a': 5, 'b': 6, 'c': 7}])
-client.put('test_rel', pandas.DataFrame({'a': [7, 8, 9], 'b': [9, 10, 11], 'c': [12, 13, 14]}))
+await client.put('test_rel', {'a': 1, 'b': 2, 'c': 3})
+await client.put('test_rel', [{'a': 3, 'b': 4, 'c': 2}, {'a': 5, 'b': 6, 'c': 7}])
+await client.put('test_rel', pandas.DataFrame({'a': [7, 8, 9], 'b': [9, 10, 11], 'c': [12, 13, 14]}))
 # for update, only specify the keys and the values you want to update
-client.update('test_rel', {'a': 7, 'b': 8})
+await client.update('test_rel', {'a': 7, 'b': 8})
 # for rm, only the keys are needed
-client.rm('test_rel', [{'a': 9}, {'a': 11}])
+await client.rm('test_rel', [{'a': 9}, {'a': 11}])
 ```
 
 ### Other operations
@@ -178,7 +178,7 @@ def cb(op_name, new_rows, old_rows):
 
 
 # this registers the callback to run when the stored relation `test_rel` changes
-cb_id = client.register_callback('test_rel', cb)
+cb_id = await client.register_callback('test_rel', cb)
 
 # your application logic here
 
@@ -207,7 +207,7 @@ def rule_impl(inputs, options):
 # of the relation returned by the implementation.
 client.register_fixed_rule('Custom', 1, rule_impl)
 
-r = client.run("""
+r = await client.run("""
     rel[u, v, w] <- [[1,2,3],[4,5,6]]
     ?[] <~ Custom(rel[], x: 1, y: null)
 """)

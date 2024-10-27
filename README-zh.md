@@ -63,13 +63,13 @@ client.close()
 ### 查询
 
 ```python
-res = client.run(SCRIPT)
+res = await client.run(SCRIPT)
 ```
 
 需要绑定变量时：
 
 ```python
-res = client.run('?[] <- [[$name]]', {'name': 'Python'})
+res = await client.run('?[] <- [[$name]]', {'name': 'Python'})
 ```
 
 如果 `pandas` 模块可用，则结果通过数据帧的形式返回。如果你安装了 `pandas` 但是不希望返回数据帧，则可以在创建数据库时使用 `dataframe=False` 选项，在此情况下返回的是一个字典，字典里的 `'rows'` 字段包含返回行，而 `'header'` 包含行的标头。
@@ -78,7 +78,7 @@ res = client.run('?[] <- [[$name]]', {'name': 'Python'})
 
 ```python
 try:
-    res = client.run('BAD!')
+    res = await client.run('BAD!')
 except Exception as e:
     print(repr(e))
 ```
@@ -131,7 +131,7 @@ def cb(op_name, new_rows, old_rows):
     pass
 
 # 回调函数在存储表 test_rel 被更改时会被调用
-cb_id = client.register_callback('test_rel', cb)
+cb_id = await client.register_callback('test_rel', cb)
 
 # 程序的其它逻辑
 
@@ -155,7 +155,7 @@ def rule_impl(inputs, options):
 # 注册固定规则。第二个参数是返回列表的列数，必须与实现中返回的列数相同。
 client.register_fixed_rule('Custom', 1, rule_impl)
 
-r = client.run("""
+r = await client.run("""
     rel[u, v, w] <- [[1,2,3],[4,5,6]]
     ?[] <~ Custom(rel[], x: 1, y: null)
 """)

@@ -6,6 +6,7 @@
 
 import json
 import logging
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -70,16 +71,18 @@ class Client:
             'x-cozo-auth': self.auth
         }
 
-    def _client_request(self, script, params=None, immutable=False):
-        import requests
+    async def _client_request(self, script, params=None, immutable=False):
+        async with httpx.AsyncClient(timeout=None) as client:
+            r = await client.post(
+                f'{self.host}/text-query', headers=self._headers(), json={
+                    'script': script,
+                    'params': params or {},
+                    'immutable': immutable
+                }
+            )
 
-        r = requests.post(f'{self.host}/text-query', headers=self._headers(), json={
-            'script': script,
-            'params': params or {},
-            'immutable': immutable
-        })
-        res = r.json()
-        return self._format_return(res)
+            res = r.json()
+            return self._format_return(res)
 
     def _format_return(self, res):
         if not res['ok']:
@@ -100,7 +103,7 @@ class Client:
         else:
             return res
 
-    def run(self, script, params=None, immutable=False):
+    async def run(self, script, params=None, immutable=False):
         """Run a given CozoScript query.
 
         :param script: the query in CozoScript
@@ -108,11 +111,11 @@ class Client:
         :return: the query result as a dict, or a pandas dataframe if the `dataframe` option was true.
         """
         if self.embedded is None:
-            return self._client_request(script, params, immutable)
+            return await self._client_request(script, params, immutable)
         else:
             return self._embedded_request(script, params, immutable)
 
-    def export_relations(self, relations):
+    async def export_relations(self, relations):
         """Export the specified relations.
 
         :param relations: names of the relations in a list.
@@ -121,20 +124,20 @@ class Client:
         if self.embedded:
             return self.embedded.export_relations(relations)
         else:
-            import requests
-            import urllib.parse
+            async with httpx.AsyncClient(timeout=None) as client:
+                import urllib.parse
 
-            rels = ','.join(map(lambda s: urllib.parse.quote_plus(s), relations))
-            url = f'{self.host}/export/{rels}'
+                rels = ','.join(map(lambda s: urllib.parse.quote_plus(s), relations))
+                url = f'{self.host}/export/{rels}'
 
-            r = requests.get(url, headers=self._headers())
-            res = r.json()
-            if res['ok']:
-                return res['data']
-            else:
-                raise RuntimeError(res['message'])
+                r = await client.get(url, headers=self._headers())
+                res = r.json()
+                if res['ok']:
+                    return res['data']
+                else:
+                    raise RuntimeError(res['message'])
 
-    def import_relations(self, data):
+    async def import_relations(self, data):
         """Import data into a database
 
         Note that triggers are _not_ run for the relations, if any exists.
@@ -146,15 +149,15 @@ class Client:
         if self.embedded:
             self.embedded.import_relations(data)
         else:
-            import requests
-            url = f'{self.host}/import'
+            async with httpx.AsyncClient(timeout=None) as client:
+                url = f'{self.host}/import'
 
-            r = requests.put(url, headers=self._headers(), json=data)
-            res = r.json()
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+                r = await client.put(url, headers=self._headers(), json=data)
+                res = r.json()
+                if not res['ok']:
+                    raise RuntimeError(res['message'])
 
-    def backup(self, path):
+    async def backup(self, path):
         """Backup a database to the specified path.
 
         :param path: the path to write the backup into. For a remote database, this is a path on the remote machine.
@@ -162,14 +165,13 @@ class Client:
         if self.embedded:
             self.embedded.backup(path)
         else:
-            import requests
+            async with httpx.AsyncClient(timeout=None) as client:
+                r = await client.post(f'{self.host}/backup', headers=self._headers(), json={'path': path})
+                res = r.json()
+                if not res['ok']:
+                    raise RuntimeError(res['message'])
 
-            r = requests.post(f'{self.host}/backup', headers=self._headers(), json={'path': path})
-            res = r.json()
-            if not res['ok']:
-                raise RuntimeError(res['message'])
-
-    def register_callback(self, relation, callback):
+    async def register_callback(self, relation, callback):
         if self.embedded:
             return self.embedded.register_callback(relation, callback)
         else:
@@ -184,8 +186,7 @@ class Client:
 
             return tid
 
-    def _start_sse(self, tid, url, callback, min_delay=1, max_delay=60):
-        import requests
+    async def _start_sse(self, tid, url, callback, min_delay=1, max_delay=60):
         logger.info('Starting SSE thread')
         headers = {'Accept': 'text/event-stream', 'Accept-Encoding': ''}
 
@@ -193,7 +194,8 @@ class Client:
 
         while True:
             try:
-                with requests.get(url, stream=True, headers=headers) as response:
+                async with httpx.AsyncClient(timeout=None) as client:
+                    response = await client.get(url, stream=True, headers=headers)
                     response.raise_for_status()
 
                     consecutive_failures = 0
@@ -251,7 +253,7 @@ class Client:
         else:
             raise RuntimeError('Remote databases cannot be restored remotely')
 
-    def import_from_backup(self, path, relations):
+    async def import_from_backup(self, path, relations):
         """Import stored relations from a backup.
 
         Note that triggers are _not_ run for the relations, if any exists.
@@ -264,13 +266,16 @@ class Client:
         if self.embedded:
             self.embedded.import_from_backup(path, relations)
         else:
-            import requests
+            async with httpx.AsyncClient(timeout=None) as client:
+                r = await client.post(
+                    f'{self.host}/import-from-backup', 
+                    headers=self._headers(),
+                    json={'path': path, 'relations': relations}
+                )
 
-            r = requests.post(f'{self.host}/import-from-backup', headers=self._headers(),
-                              json={'path': path, 'relations': relations})
-            res = r.json()
-            if not res['ok']:
-                raise RuntimeError(res['message'])
+                res = r.json()
+                if not res['ok']:
+                    raise RuntimeError(res['message'])
 
     def multi_transact(self, write=False):
         if self.embedded:
@@ -308,22 +313,22 @@ class Client:
             else:
                 raise RuntimeError('Invalid data type for mutation')
 
-    def _mutate(self, relation, data, op):
+    async def _mutate(self, relation, data, op):
         cols_str, processed_data = self._process_mutate_data(data)
         q = f'?[{cols_str}] <- $data :{op} {relation} {{ {cols_str} }}'
-        return self.run(q, {'data': processed_data})
+        return await self.run(q, {'data': processed_data})
 
-    def insert(self, relation, data):
-        return self._mutate(relation, data, 'insert')
+    async def insert(self, relation, data):
+        return await self._mutate(relation, data, 'insert')
 
-    def put(self, relation, data):
-        return self._mutate(relation, data, 'put')
+    async def put(self, relation, data):
+        return await self._mutate(relation, data, 'put')
 
-    def update(self, relation, data):
-        return self._mutate(relation, data, 'update')
+    async def update(self, relation, data):
+        return await self._mutate(relation, data, 'update')
 
-    def rm(self, relation, data):
-        return self._mutate(relation, data, 'rm')
+    async def rm(self, relation, data):
+        return await self._mutate(relation, data, 'rm')
 
 
 class MultiTransact:

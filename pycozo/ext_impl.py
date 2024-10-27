@@ -5,6 +5,7 @@
 #  You can obtain one at https://mozilla.org/MPL/2.0/.
 
 import json
+import httpx
 
 from IPython.core.magic import (Magics, magics_class, line_magic,
                                 cell_magic, needs_local_scope)
@@ -138,15 +139,15 @@ class CozoMagics(Magics):
 
 
     @line_magic
-    def cozo_import_remote_file(self, line):
+    async def cozo_import_remote_file(self, line):
         """Import data saved in a local file"""
-        import requests
         self._ensure_client()
         url = eval(line)
-        resp = requests.get(url)
-        resp.raise_for_status()
-        data = resp.json()
-        self.client.import_relations(data)
+        async with httpx.AsyncClient(timeout=None) as client:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            data = resp.json()
+            self.client.import_relations(data)
 
 def _colour_code_type(val):
     if isinstance(val, int) or isinstance(val, float):
