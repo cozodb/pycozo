@@ -36,10 +36,13 @@ class Client:
                           must be installed.
         """
         self.pandas = None
+        self.session = None
+        self.embedded = None
         if engine == 'http':
+            import requests
             self.host = options['host']
             self.auth = options.get('auth')
-            self.embedded = None
+            self.session = requests.Session()
             self._remote_sse = {}
             self._remote_cb_id = 0
         else:
@@ -59,11 +62,17 @@ class Client:
 
         For embedded databases, this method must be called, otherwise the native resources associated with it
         may live as long as your program.
-
-        This is a no-op for HTTP-based clients.
         """
         if self.embedded:
-            self.embedded.close()
+            try:
+                self.embedded.close()
+            except Exception:
+                logger.exception("Exception while closing embedded database:")
+        if self.session:
+            try:
+                self.session.close()
+            except Exception:
+                logger.exception("Exception while closing http connection to database:")
 
     def _headers(self):
         return {
@@ -71,9 +80,7 @@ class Client:
         }
 
     def _client_request(self, script, params=None, immutable=False):
-        import requests
-
-        r = requests.post(f'{self.host}/text-query', headers=self._headers(), json={
+        r = self.session.post(f'{self.host}/text-query', headers=self._headers(), json={
             'script': script,
             'params': params or {},
             'immutable': immutable
@@ -81,8 +88,31 @@ class Client:
         res = r.json()
         return self._format_return(res)
 
-    def _format_return(self, res):
+    def _client_tx_begin(self, write: bool) -> int:
+        r = self.session.post(f'{self.host}/transact?write={str(write).lower()}', headers=self._headers())
+        res = r.json()
         if not res['ok']:
+            raise RuntimeError(res['message'])
+        tx_id = res['id']
+        return tx_id
+
+    def _client_tx_request(self, tx_id: int, script, params=None):
+        r = self.session.post(f'{self.host}/transact/{tx_id}', headers=self._headers(), json={
+            'script': script,
+            'params': params or {},
+        })
+        res = r.json()
+        return self._format_return(res)
+
+    def _client_tx_finish(self, tx_id: int, abort: bool):
+        r = self.session.put(f'{self.host}/transact/{tx_id}', headers=self._headers(), json={
+            'abort': abort,
+        })
+        res = r.json()
+        return self._format_return(res)
+
+    def _format_return(self, res):
+        if res.get('ok') is False or ('ok' not in res and 'rows' not in res):
             raise QueryException(res)
 
         if self.pandas:
@@ -121,13 +151,12 @@ class Client:
         if self.embedded:
             return self.embedded.export_relations(relations)
         else:
-            import requests
             import urllib.parse
 
             rels = ','.join(map(lambda s: urllib.parse.quote_plus(s), relations))
             url = f'{self.host}/export/{rels}'
 
-            r = requests.get(url, headers=self._headers())
+            r = self.session.get(url, headers=self._headers())
             res = r.json()
             if res['ok']:
                 return res['data']
@@ -146,10 +175,7 @@ class Client:
         if self.embedded:
             self.embedded.import_relations(data)
         else:
-            import requests
-            url = f'{self.host}/import'
-
-            r = requests.put(url, headers=self._headers(), json=data)
+            r = self.session.put(f'{self.host}/import', headers=self._headers(), json=data)
             res = r.json()
             if not res['ok']:
                 raise RuntimeError(res['message'])
@@ -162,9 +188,7 @@ class Client:
         if self.embedded:
             self.embedded.backup(path)
         else:
-            import requests
-
-            r = requests.post(f'{self.host}/backup', headers=self._headers(), json={'path': path})
+            r = self.session.post(f'{self.host}/backup', headers=self._headers(), json={'path': path})
             res = r.json()
             if not res['ok']:
                 raise RuntimeError(res['message'])
@@ -185,7 +209,6 @@ class Client:
             return tid
 
     def _start_sse(self, tid, url, callback, min_delay=1, max_delay=60):
-        import requests
         logger.info('Starting SSE thread')
         headers = {'Accept': 'text/event-stream', 'Accept-Encoding': ''}
 
@@ -193,7 +216,7 @@ class Client:
 
         while True:
             try:
-                with requests.get(url, stream=True, headers=headers) as response:
+                with self.session.get(url, stream=True, headers=headers) as response:
                     response.raise_for_status()
 
                     consecutive_failures = 0
@@ -264,10 +287,8 @@ class Client:
         if self.embedded:
             self.embedded.import_from_backup(path, relations)
         else:
-            import requests
-
-            r = requests.post(f'{self.host}/import-from-backup', headers=self._headers(),
-                              json={'path': path, 'relations': relations})
+            r = self.session.post(f'{self.host}/import-from-backup', headers=self._headers(),
+                                  json={'path': path, 'relations': relations})
             res = r.json()
             if not res['ok']:
                 raise RuntimeError(res['message'])
@@ -276,7 +297,7 @@ class Client:
         if self.embedded:
             return MultiTransact(self.embedded.multi_transact(write))
         else:
-            raise RuntimeError('Multi-transaction not yet supported for remote')
+            return RemoteMultiTransact(self._client_tx_begin(write), self._client_tx_request, self._client_tx_finish)
 
     def _process_mutate_data_dict(self, data):
         cols = []
@@ -333,7 +354,7 @@ class MultiTransact:
     def __enter__(self):
         return self
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_value, exc_traceback):
         try:
             self.abort()
         except:
@@ -347,6 +368,43 @@ class MultiTransact:
 
     def run(self, script, params=None):
         return self.multi_tx.run_script(script, params or {})
+
+
+class RemoteMultiTransact:
+    def __init__(self, tx_id: int, tx_request, tx_finish):
+        self._tx_id = tx_id
+        self._tx_request = tx_request
+        self._tx_finish = tx_finish
+        self._finished = False
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, exc_traceback):
+        if not self._finished:
+            try:
+                self.abort()
+            except:
+                pass
+
+    def commit(self):
+        if self._finished:
+            raise ValueError("Transaction has already been completed.")
+        result = self._tx_finish(self._tx_id, abort=False)
+        self._finished = True
+        return result
+
+    def abort(self):
+        if self._finished:
+            raise ValueError("Transaction has already been completed.")
+        result = self._tx_finish(self._tx_id, abort=True)
+        self._finished = True
+        return result
+
+    def run(self, script, params=None):
+        if self._finished:
+            raise ValueError("Transaction has already been completed.")
+        return self._tx_request(self._tx_id, script, params or {})
 
 
 class QueryException(Exception):
